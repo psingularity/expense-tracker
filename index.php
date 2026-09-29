@@ -32,6 +32,14 @@
 
         return $errors;
     }
+
+    function calculateTotal($expenses){
+        $sum = 0;
+        foreach ($expenses as $expense){
+            $sum += $expense["amount"];
+        }
+        return $sum;
+    }
     
     function validateId($id){
         if(filter_var($id, FILTER_VALIDATE_INT) && $id > 0){
@@ -40,7 +48,7 @@
             return false;
         }
     };
-
+   
     if ($_SERVER["REQUEST_METHOD"] === "POST" ){   
 
         if($action === "add"){             
@@ -60,8 +68,7 @@
                 header("Location:index.php");
                 exit;
             }
-        }
-        if($action === "delete"){ 
+        } elseif ($action === "delete"){ 
             $id = $_POST["id"] ?? "";            
             if(validateId($id)){
                 $sql = "DELETE FROM expenses WHERE id = ?";
@@ -73,8 +80,7 @@
             } else {
                 $errors[] = "Invalid expense ID";
             }
-        }
-        if ($action === 'edit'){
+        } elseif ($action === 'edit'){
             $id = $_POST["id"] ?? "";
             if(validateId($id)){
                 $sql = "SELECT * FROM expenses WHERE id = ?";
@@ -90,10 +96,9 @@
                 $errors[] = "Invalid expense ID";
                
             }
-        }    
-        if ($action === "update"){
+        } elseif ($action === "update"){
             $id = $_POST["id"] ?? "";
-           if(validateId($id)){
+            if(validateId($id)){
                 $amount = $_POST["amount"] ?? "";
                 $category = trim($_POST["category"] ?? "");
                 $description = trim($_POST["description"] ?? "");
@@ -121,10 +126,28 @@
             } else {
                 $errors[] = "Invalid expense ID";               
             }
-        }    
+        } else {
+            $errors[] = "Unknown action";
+        } 
     }
 
-    $result = $pdo->query("SELECT * FROM expenses");
+    $filterByCategory = $_GET["category"] ?? "";
+    if(is_string($filterByCategory)){
+        $filterByCategory = trim($filterByCategory);
+    } else {
+        $filterByCategory = "";
+    }
+ 
+
+    if ($filterByCategory === ""){
+        $result = $pdo->query("SELECT * FROM expenses");
+    } else {
+        $sql = "SELECT * FROM expenses WHERE category = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$filterByCategory]);
+        $result = $stmt;
+    }
+
     $expenses = $result->fetchAll(PDO::FETCH_ASSOC);
 
     if(!empty($errors)){
@@ -136,7 +159,17 @@
     if (!empty($message)) {
         echo "<p style='color: green'>{$message}</p>";
     }
+    
+    $sum = calculateTotal($expenses);
 ?>
+<form method="GET">
+    <label>
+        Категория: 
+        <input type="text" name="category" value="<?= htmlspecialchars($filterByCategory, ENT_QUOTES, 'UTF-8') ?>"> 
+    </label>
+    <button type="submit">Показать</button>
+    <a href="index.php">Сбросить</a>
+</form>
 
 <form method="POST">
     <label>
@@ -158,7 +191,7 @@
     <button name="action" value="add">Add expense</button>
 </form>
 
-<table>
+<table>    
     <tr>
         <th>Description</th>
         <th>Amount</th>
@@ -166,6 +199,9 @@
         <th>Date</th>
         <th>Actions</th>
     </tr>
+    <?php if (empty($expenses)){?>
+        <tr><td colspan='5'>No expenses found!</td></tr>
+    <?php } else {?>
     <?php foreach ($expenses as $expense){ ?>
         <tr>
             <td><?= htmlspecialchars((string) $expense['description'], ENT_QUOTES, 'UTF-8') ?></td>
@@ -183,8 +219,10 @@
                     <button name="action" value="edit">Edit</button>
                 </form>               
             </td>
-        </tr>
-    <?php } ?>
+        </tr>        
+        <?php } }?>        
+        <tr><td colspan=4>Total: </td><td><?= $sum ?></td></tr>
+        <tr><td colspan=4>Expenses: </td><td><?= count($expenses) ?></td></tr>
 </table>
  <?php if ($editingExpense !== null){?>
     <form method="POST">
