@@ -150,6 +150,10 @@
 
     $expenses = $result->fetchAll(PDO::FETCH_ASSOC);
 
+    $summaryResult = $pdo->query("SELECT category, COALESCE(SUM(amount), 0) AS total, COUNT(*) AS expense_count FROM expenses GROUP BY category ORDER BY total DESC");
+    $categorySummary = $summaryResult ->fetchAll(PDO::FETCH_ASSOC);
+    print_r(empty($categorySummary));
+   
     if(!empty($errors)){
         foreach ($errors as $error){
              echo "<p style='color: red'>".$error."</p>"; 
@@ -162,6 +166,23 @@
     
     $sum = calculateTotal($expenses);
 ?>
+<?php if(!empty($categorySummary)){?>
+<table>    
+    <tr>
+        <th>Category</th>
+        <th>Total</th>
+        <th>expense count</th>
+    </tr>
+    <?php foreach($categorySummary as $category){?>
+        <tr>
+            <td><?= htmlspecialchars((string) $category['category'], ENT_QUOTES, 'UTF-8')?></td>
+            <td><?= htmlspecialchars((string) $category['total'], ENT_QUOTES, 'UTF-8')?></td>
+            <td><?= htmlspecialchars((string) $category['expense_count'], ENT_QUOTES, 'UTF-8') ?></td>
+        </tr>
+    <?php } ?>    
+</table>
+<?php } ?> 
+
 <form method="GET">
     <label>
         Категория: 
